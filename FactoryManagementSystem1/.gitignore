@@ -1,0 +1,19 @@
+﻿# Build results
+bin/
+obj/
+
+# User-specific files
+.vs/
+
+# ASP.NET Core
+appsettings.Development.json
+
+# Environment variables
+.env
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
