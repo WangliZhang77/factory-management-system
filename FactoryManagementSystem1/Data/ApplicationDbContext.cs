@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
+using FactoryManagementSystem1.Domain.Entities;
 
 namespace FactoryManagementSystem1.Data
 {
@@ -9,5 +10,7 @@ namespace FactoryManagementSystem1.Data
             : base(options)
         {
         }
+
+        public DbSet<InventoryItem> InventoryItems { get; set; } = null!;
     }
 }
