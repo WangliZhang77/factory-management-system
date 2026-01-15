@@ -13,6 +13,5 @@ public class InventoryItem
     public decimal OnHandQty { get; set; }
 
     public decimal Threshold { get; set; } // low stock alert
-
     public decimal LowStockThreshold { get; set; } = 10;
 }
