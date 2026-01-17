@@ -8,7 +8,13 @@ namespace FactoryManagementSystem1.Services;
 public class InventoryService
 {
     private readonly ApplicationDbContext _db;
+    private readonly AuditService _audit;
 
+    public InventoryService(ApplicationDbContext db, AuditService audit)
+    {
+        _db = db;
+        _audit = audit;
+    }
     public InventoryService(ApplicationDbContext db)
     {
         _db = db;
@@ -53,5 +59,13 @@ public class InventoryService
         _db.StockMovements.Add(movement);
 
         await _db.SaveChangesAsync();
+        await _audit.LogAsync(
+    userId,
+    "StockOut",
+    "InventoryItem",
+    item.Id.ToString(),
+    $"OUT Qty={quantity}, Reason={reason}, WorkOrderId={workOrderId}"
+);
+
     }
 }

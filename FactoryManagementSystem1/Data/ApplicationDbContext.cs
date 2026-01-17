@@ -10,7 +10,7 @@ namespace FactoryManagementSystem1.Data
             : base(options)
         {
         }
-
+        public DbSet<AuditLog> AuditLogs { get; set; } = null!;
         public DbSet<InventoryItem> InventoryItems { get; set; } = null!;
         public DbSet<StockMovement> StockMovements { get; set; } = null!;
 
