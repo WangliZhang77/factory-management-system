@@ -10,9 +10,8 @@ public class AuditLog
 
     public string EntityName { get; set; } = string.Empty; // e.g., "InventoryItem"
 
-    public string EntityId { get; set; } = string.Empty; // store as string for flexibility
+    public string EntityId { get; set; } = string.Empty; 
 
-    public string Details { get; set; } = string.Empty; // free-text / JSON later
-
+    public string Details { get; set; } = string.Empty;
     public DateTime TimestampUtc { get; set; } = DateTime.UtcNow;
 }

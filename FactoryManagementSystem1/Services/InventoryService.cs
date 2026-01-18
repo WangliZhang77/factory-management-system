@@ -33,7 +33,10 @@ public class InventoryService
         {
             throw new InvalidOperationException("Inventory item not found.");
         }
-
+        if (!item.IsActive)
+        {
+            throw new InvalidOperationException("Inventory item is inactive and cannot be issued.");
+        }
         if (quantity <= 0)
         {
             throw new InvalidOperationException("Quantity must be greater than zero.");
