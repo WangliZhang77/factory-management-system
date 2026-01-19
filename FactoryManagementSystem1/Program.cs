@@ -18,6 +18,7 @@ builder.Services.AddDefaultIdentity<IdentityUser>(options =>
 })
 .AddEntityFrameworkStores<ApplicationDbContext>();
 builder.Services.AddScoped<InventoryService>();
+builder.Services.AddScoped<WorkOrderService>();
 
 builder.Services.AddRazorPages();
 
