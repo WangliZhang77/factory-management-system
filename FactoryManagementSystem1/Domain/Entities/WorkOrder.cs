@@ -4,6 +4,9 @@ namespace FactoryManagementSystem1.Domain.Entities;
 
 public class WorkOrder
 {
+    public DateTime? SubmittedAtUtc { get; set; }
+    public string? SubmittedByUserId { get; set; }
+
     public int Id { get; set; }
 
     // Human-friendly number, e.g. WO-2026-0001 (we can generate later)

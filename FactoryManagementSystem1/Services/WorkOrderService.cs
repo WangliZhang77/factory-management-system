@@ -44,6 +44,39 @@ public class WorkOrderService
         return workOrder;
     }
 
+    public async Task SubmitAsync(int workOrderId, string userId)
+    {
+        var wo = await _db.WorkOrders.FirstOrDefaultAsync(w => w.Id == workOrderId);
+
+        if (wo == null)
+            throw new InvalidOperationException("Work order not found.");
+
+        if (string.IsNullOrWhiteSpace(userId))
+            throw new InvalidOperationException("UserId is required.");
+
+        
+        if (wo.Status != WorkOrderStatus.Draft)
+            throw new InvalidOperationException("Only Draft work orders can be submitted.");
+
+        wo.Status = WorkOrderStatus.Submitted;
+        wo.SubmittedAtUtc = DateTime.UtcNow;
+        wo.SubmittedByUserId = userId;
+
+       
+        _db.AuditLogs.Add(new Domain.Entities.AuditLog
+        {
+            UserId = userId,
+            Action = "WorkOrderSubmitted",
+            EntityName = "WorkOrder",
+            EntityId = wo.Id.ToString(),
+            Details = $"WorkOrderNo={wo.WorkOrderNo}",
+            TimestampUtc = DateTime.UtcNow
+        });
+
+        await _db.SaveChangesAsync();
+    }
+
+
     private async Task<string> GenerateWorkOrderNoAsync()
     {
         // Simple sequential number based on existing count (OK for demo MVP).
