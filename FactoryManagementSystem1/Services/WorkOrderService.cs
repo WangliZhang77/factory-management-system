@@ -62,7 +62,6 @@ public class WorkOrderService
         if (string.IsNullOrWhiteSpace(userId))
             throw new InvalidOperationException("UserId is required.");
 
-        // Transaction ensures status change + audit log are saved together
         await using var tx = await _db.Database.BeginTransactionAsync();
 
         var wo = await _db.WorkOrders
@@ -71,27 +70,40 @@ public class WorkOrderService
         if (wo == null)
             throw new InvalidOperationException("Work order not found.");
 
-        // ⭐ State machine rule (interview point)
+       
+        if (wo.Status == WorkOrderStatus.Submitted)
+            throw new InvalidOperationException("Work order has already been submitted.");
+
         if (wo.Status != WorkOrderStatus.Draft)
-            throw new InvalidOperationException("Only Draft work orders can be submitted.");
+            throw new InvalidOperationException(
+                $"Work order cannot be submitted from status '{wo.Status}'.");
 
         wo.Status = WorkOrderStatus.Submitted;
         wo.SubmittedAtUtc = DateTime.UtcNow;
         wo.SubmittedByUserId = userId;
 
-        _db.AuditLogs.Add(new AuditLog
+        var hasSubmitLog = await _db.AuditLogs.AnyAsync(a =>
+            a.EntityName == "WorkOrder" &&
+            a.EntityId == wo.Id.ToString() &&
+            a.Action == "WorkOrderSubmitted");
+
+        if (!hasSubmitLog)
         {
-            UserId = userId,
-            Action = "WorkOrderSubmitted",
-            EntityName = "WorkOrder",
-            EntityId = wo.Id.ToString(),
-            Details = $"WorkOrderNo={wo.WorkOrderNo}",
-            TimestampUtc = DateTime.UtcNow
-        });
+            _db.AuditLogs.Add(new AuditLog
+            {
+                UserId = userId,
+                Action = "WorkOrderSubmitted",
+                EntityName = "WorkOrder",
+                EntityId = wo.Id.ToString(),
+                Details = $"WorkOrderNo={wo.WorkOrderNo}",
+                TimestampUtc = DateTime.UtcNow
+            });
+        }
 
         await _db.SaveChangesAsync();
         await tx.CommitAsync();
     }
+
 
     /// <summary>
     /// MVP WorkOrderNo generator: WO-{year}-{seq:D4}
