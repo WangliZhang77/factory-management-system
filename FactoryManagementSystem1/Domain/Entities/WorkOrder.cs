@@ -4,12 +4,10 @@ namespace FactoryManagementSystem1.Domain.Entities;
 
 public class WorkOrder
 {
-    public DateTime? SubmittedAtUtc { get; set; }
-    public string? SubmittedByUserId { get; set; }
-
     public int Id { get; set; }
 
-    // Human-friendly number, e.g. WO-2026-0001 (we can generate later)
+    // ===== Core Info =====
+    // Human-friendly number, e.g. WO-2026-0001
     public string WorkOrderNo { get; set; } = string.Empty;
 
     public string Title { get; set; } = string.Empty;
@@ -21,9 +19,23 @@ public class WorkOrder
 
     public WorkOrderStatus Status { get; set; } = WorkOrderStatus.Draft;
 
-    // Optional assignment (link to AspNetUsers.Id later)
+    // ===== Submission =====
+    public DateTime? SubmittedAtUtc { get; set; }
+    public string? SubmittedByUserId { get; set; }
+
+    // ===== Approval =====
+    public DateTime? ApprovedAtUtc { get; set; }
+    public string? ApprovedByUserId { get; set; }
+
+    // ===== Rejection =====
+    public DateTime? RejectedAtUtc { get; set; }
+    public string? RejectedByUserId { get; set; }
+    public string? RejectionReason { get; set; }
+
+    // ===== Optional Assignment =====
+    // Link to AspNetUsers.Id
     public string? AssignedToUserId { get; set; }
 
-    // Optional equipment
+    // ===== Optional Equipment =====
     public int? EquipmentId { get; set; }
 }
