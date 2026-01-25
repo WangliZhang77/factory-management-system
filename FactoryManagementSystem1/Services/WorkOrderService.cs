@@ -136,4 +136,76 @@ public class WorkOrderService
         var next = maxSeq + 1;
         return $"{prefix}{next:D4}";
     }
+    public async Task ApproveAsync(int workOrderId, string supervisorUserId)
+    {
+        if (string.IsNullOrWhiteSpace(supervisorUserId))
+            throw new InvalidOperationException("Supervisor userId is required.");
+
+        await using var tx = await _db.Database.BeginTransactionAsync();
+
+        var wo = await _db.WorkOrders.FirstOrDefaultAsync(w => w.Id == workOrderId);
+
+        if (wo == null)
+            throw new InvalidOperationException("Work order not found.");
+
+        if (wo.Status != WorkOrderStatus.Submitted)
+            throw new InvalidOperationException(
+                $"Only Submitted work orders can be approved. Current status: {wo.Status}");
+
+        wo.Status = WorkOrderStatus.Approved;
+        wo.ApprovedAtUtc = DateTime.UtcNow;
+        wo.ApprovedByUserId = supervisorUserId;
+
+        _db.AuditLogs.Add(new AuditLog
+        {
+            UserId = supervisorUserId,
+            Action = "WorkOrderApproved",
+            EntityName = "WorkOrder",
+            EntityId = wo.Id.ToString(),
+            Details = $"WorkOrderNo={wo.WorkOrderNo}",
+            TimestampUtc = DateTime.UtcNow
+        });
+
+        await _db.SaveChangesAsync();
+        await tx.CommitAsync();
+    }
+
+    public async Task RejectAsync(int workOrderId, string supervisorUserId, string reason)
+    {
+        if (string.IsNullOrWhiteSpace(supervisorUserId))
+            throw new InvalidOperationException("Supervisor userId is required.");
+
+        if (string.IsNullOrWhiteSpace(reason))
+            throw new InvalidOperationException("Rejection reason is required.");
+
+        await using var tx = await _db.Database.BeginTransactionAsync();
+
+        var wo = await _db.WorkOrders.FirstOrDefaultAsync(w => w.Id == workOrderId);
+
+        if (wo == null)
+            throw new InvalidOperationException("Work order not found.");
+
+        if (wo.Status != WorkOrderStatus.Submitted)
+            throw new InvalidOperationException(
+                $"Only Submitted work orders can be rejected. Current status: {wo.Status}");
+
+        wo.Status = WorkOrderStatus.Rejected;
+        wo.RejectedAtUtc = DateTime.UtcNow;
+        wo.RejectedByUserId = supervisorUserId;
+        wo.RejectionReason = reason.Trim();
+
+        _db.AuditLogs.Add(new AuditLog
+        {
+            UserId = supervisorUserId,
+            Action = "WorkOrderRejected",
+            EntityName = "WorkOrder",
+            EntityId = wo.Id.ToString(),
+            Details = $"Reason={reason}",
+            TimestampUtc = DateTime.UtcNow
+        });
+
+        await _db.SaveChangesAsync();
+        await tx.CommitAsync();
+    }
+
 }
