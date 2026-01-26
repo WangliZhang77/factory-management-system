@@ -14,9 +14,12 @@ public class WorkOrderService
         _db = db;
     }
 
+    // ============================================================
+    // Create Draft
+    // ============================================================
+
     /// <summary>
     /// Create a Draft work order with an auto-generated WorkOrderNo.
-    /// Status: Draft
     /// </summary>
     public async Task<WorkOrder> CreateDraftAsync(
         string title,
@@ -30,7 +33,6 @@ public class WorkOrderService
         if (quantity <= 0)
             throw new InvalidOperationException("Quantity must be greater than zero.");
 
-        // Use transaction to keep WorkOrder + generated number consistent
         await using var tx = await _db.Database.BeginTransactionAsync();
 
         var woNo = await GenerateWorkOrderNoAsync();
@@ -52,10 +54,13 @@ public class WorkOrderService
         return workOrder;
     }
 
+    // ============================================================
+    // Submit
+    // ============================================================
+
     /// <summary>
-    /// Submit a work order.
+    /// Submit a Draft work order.
     /// Rule: only Draft can be submitted.
-    /// Writes an AuditLog entry for traceability.
     /// </summary>
     public async Task SubmitAsync(int workOrderId, string userId)
     {
@@ -64,13 +69,10 @@ public class WorkOrderService
 
         await using var tx = await _db.Database.BeginTransactionAsync();
 
-        var wo = await _db.WorkOrders
-            .FirstOrDefaultAsync(w => w.Id == workOrderId);
-
+        var wo = await _db.WorkOrders.FirstOrDefaultAsync(w => w.Id == workOrderId);
         if (wo == null)
             throw new InvalidOperationException("Work order not found.");
 
-       
         if (wo.Status == WorkOrderStatus.Submitted)
             throw new InvalidOperationException("Work order has already been submitted.");
 
@@ -104,38 +106,10 @@ public class WorkOrderService
         await tx.CommitAsync();
     }
 
+    // ============================================================
+    // Approve / Reject
+    // ============================================================
 
-    /// <summary>
-    /// MVP WorkOrderNo generator: WO-{year}-{seq:D4}
-    /// NOTE: This is fine for a demo. For concurrency-safe production,
-    /// use a database sequence or unique constraint + retry.
-    /// </summary>
-    private async Task<string> GenerateWorkOrderNoAsync()
-    {
-        var year = DateTime.UtcNow.Year;
-        var prefix = $"WO-{year}-";
-
-        // Find the max existing sequence number for this year
-        // Example existing: WO-2026-0007 => seq=7
-        var existingNos = await _db.WorkOrders
-            .Where(w => w.WorkOrderNo.StartsWith(prefix))
-            .Select(w => w.WorkOrderNo)
-            .ToListAsync();
-
-        var maxSeq = 0;
-        foreach (var no in existingNos)
-        {
-            // Safe parse: WO-YYYY-#### (length check optional)
-            var parts = no.Split('-');
-            if (parts.Length == 3 && int.TryParse(parts[2], out var seq))
-            {
-                if (seq > maxSeq) maxSeq = seq;
-            }
-        }
-
-        var next = maxSeq + 1;
-        return $"{prefix}{next:D4}";
-    }
     public async Task ApproveAsync(int workOrderId, string supervisorUserId)
     {
         if (string.IsNullOrWhiteSpace(supervisorUserId))
@@ -144,7 +118,6 @@ public class WorkOrderService
         await using var tx = await _db.Database.BeginTransactionAsync();
 
         var wo = await _db.WorkOrders.FirstOrDefaultAsync(w => w.Id == workOrderId);
-
         if (wo == null)
             throw new InvalidOperationException("Work order not found.");
 
@@ -181,7 +154,6 @@ public class WorkOrderService
         await using var tx = await _db.Database.BeginTransactionAsync();
 
         var wo = await _db.WorkOrders.FirstOrDefaultAsync(w => w.Id == workOrderId);
-
         if (wo == null)
             throw new InvalidOperationException("Work order not found.");
 
@@ -208,4 +180,71 @@ public class WorkOrderService
         await tx.CommitAsync();
     }
 
+    // ============================================================
+    // In Progress → Completed
+    // ============================================================
+
+    public async Task CompleteAsync(int workOrderId, string userId)
+    {
+        if (string.IsNullOrWhiteSpace(userId))
+            throw new InvalidOperationException("UserId is required.");
+
+        await using var tx = await _db.Database.BeginTransactionAsync();
+
+        var wo = await _db.WorkOrders.FirstOrDefaultAsync(w => w.Id == workOrderId);
+        if (wo == null)
+            throw new InvalidOperationException("Work order not found.");
+
+        if (wo.Status != WorkOrderStatus.InProgress)
+            throw new InvalidOperationException(
+                $"Only InProgress work orders can be completed. Current status: {wo.Status}");
+
+        wo.Status = WorkOrderStatus.Completed;
+        wo.CompletedAtUtc = DateTime.UtcNow;
+        wo.CompletedByUserId = userId;
+
+        _db.AuditLogs.Add(new AuditLog
+        {
+            UserId = userId,
+            Action = "WorkOrderCompleted",
+            EntityName = "WorkOrder",
+            EntityId = wo.Id.ToString(),
+            Details = $"WorkOrderNo={wo.WorkOrderNo}",
+            TimestampUtc = DateTime.UtcNow
+        });
+
+        await _db.SaveChangesAsync();
+        await tx.CommitAsync();
+    }
+
+    // ============================================================
+    // Helpers
+    // ============================================================
+
+    /// <summary>
+    /// MVP WorkOrderNo generator: WO-{year}-{seq:D4}
+    /// </summary>
+    private async Task<string> GenerateWorkOrderNoAsync()
+    {
+        var year = DateTime.UtcNow.Year;
+        var prefix = $"WO-{year}-";
+
+        var existingNos = await _db.WorkOrders
+            .Where(w => w.WorkOrderNo.StartsWith(prefix))
+            .Select(w => w.WorkOrderNo)
+            .ToListAsync();
+
+        var maxSeq = 0;
+        foreach (var no in existingNos)
+        {
+            var parts = no.Split('-');
+            if (parts.Length == 3 && int.TryParse(parts[2], out var seq))
+            {
+                if (seq > maxSeq) maxSeq = seq;
+            }
+        }
+
+        var next = maxSeq + 1;
+        return $"{prefix}{next:D4}";
+    }
 }
