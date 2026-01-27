@@ -15,5 +15,5 @@ public class InventoryItem
     public decimal Threshold { get; set; } // low stock alert
     public decimal LowStockThreshold { get; set; } = 10;
     public bool IsActive { get; set; } = true;
-
+    public bool IsLowStock => OnHandQty <= LowStockThreshold;
 }

@@ -47,7 +47,7 @@ public class InventoryService
             throw new InvalidOperationException("Insufficient stock. Inventory cannot go negative.");
         }
 
-    
+
         item.OnHandQty -= quantity;
         var movement = new StockMovement
         {

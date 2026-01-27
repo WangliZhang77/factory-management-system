@@ -1,0 +1,44 @@
+﻿@page
+@model FactoryManagementSystem1.Pages.Inventory.IndexModel
+@{
+    ViewData["Title"] = "Inventory";
+}
+
+<h1>Inventory</h1>
+
+<table class="table table-striped">
+    <thead>
+        <tr>
+            <th>SKU</th>
+            <th>Name</th>
+            <th>Unit</th>
+            <th>On Hand</th>
+            <th>Low Stock Threshold</th>
+            <th>Status</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var item in Model.Items)
+        {
+            var rowClass = item.IsLowStock ? "table-danger" : "";
+
+            <tr class="@rowClass">
+                <td>@item.SKU</td>
+                <td>@item.Name</td>
+                <td>@item.Unit</td>
+                <td>@item.OnHandQty</td>
+                <td>@item.LowStockThreshold</td>
+                <td>
+                    @if (item.IsLowStock)
+                    {
+                        <span class="badge bg-danger">Low Stock</span>
+                    }
+                    else
+                    {
+                        <span class="badge bg-success">OK</span>
+                    }
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>
