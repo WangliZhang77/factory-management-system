@@ -220,7 +220,40 @@ public class WorkOrderService
     // ============================================================
     // Helpers
     // ============================================================
+    public async Task CancelAsync(int workOrderId, string userId, string? reason = null)
+    {
+        if (string.IsNullOrWhiteSpace(userId))
+            throw new InvalidOperationException("UserId is required.");
 
+        await using var tx = await _db.Database.BeginTransactionAsync();
+
+        var wo = await _db.WorkOrders.FirstOrDefaultAsync(w => w.Id == workOrderId);
+        if (wo == null)
+            throw new InvalidOperationException("Work order not found.");
+
+        // ⭐ 状态机规则
+        if (wo.Status != WorkOrderStatus.Draft &&
+            wo.Status != WorkOrderStatus.Submitted)
+            throw new InvalidOperationException(
+                $"Work order in status '{wo.Status}' cannot be cancelled.");
+
+        wo.Status = WorkOrderStatus.Cancelled;
+        wo.CancelledAtUtc = DateTime.UtcNow;
+        wo.CancelledByUserId = userId;
+
+        _db.AuditLogs.Add(new AuditLog
+        {
+            UserId = userId,
+            Action = "WorkOrderCancelled",
+            EntityName = "WorkOrder",
+            EntityId = wo.Id.ToString(),
+            Details = reason ?? $"WorkOrderNo={wo.WorkOrderNo}",
+            TimestampUtc = DateTime.UtcNow
+        });
+
+        await _db.SaveChangesAsync();
+        await tx.CommitAsync();
+    }
     /// <summary>
     /// MVP WorkOrderNo generator: WO-{year}-{seq:D4}
     /// </summary>
