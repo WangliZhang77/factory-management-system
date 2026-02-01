@@ -1,44 +1,63 @@
-﻿@page
-@model FactoryManagementSystem1.Pages.Inventory.IndexModel
-@{
-    ViewData["Title"] = "Inventory";
-}
+﻿using FactoryManagementSystem1.Data;
+using FactoryManagementSystem1.Domain.Entities;
+using FactoryManagementSystem1.Domain.Enums;
+using Microsoft.AspNetCore.Mvc.RazorPages;
+using Microsoft.EntityFrameworkCore;
 
-<h1>Inventory</h1>
+namespace FactoryManagementSystem1.Pages
+{
+    public class IndexModel : PageModel
+    {
+        private readonly ApplicationDbContext _db;
 
-<table class="table table-striped">
-    <thead>
-        <tr>
-            <th>SKU</th>
-            <th>Name</th>
-            <th>Unit</th>
-            <th>On Hand</th>
-            <th>Low Stock Threshold</th>
-            <th>Status</th>
-        </tr>
-    </thead>
-    <tbody>
-        @foreach (var item in Model.Items)
+        public IndexModel(ApplicationDbContext db)
         {
-            var rowClass = item.IsLowStock ? "table-danger" : "";
-
-            <tr class="@rowClass">
-                <td>@item.SKU</td>
-                <td>@item.Name</td>
-                <td>@item.Unit</td>
-                <td>@item.OnHandQty</td>
-                <td>@item.LowStockThreshold</td>
-                <td>
-                    @if (item.IsLowStock)
-                    {
-                        <span class="badge bg-danger">Low Stock</span>
-                    }
-                    else
-                    {
-                        <span class="badge bg-success">OK</span>
-                    }
-                </td>
-            </tr>
+            _db = db;
         }
-    </tbody>
-</table>
+
+        // Statistics
+        public int TotalInventoryItems { get; set; }
+        public int LowStockCount { get; set; }
+        public int TotalWorkOrders { get; set; }
+        public int DraftWorkOrders { get; set; }
+        public int SubmittedWorkOrders { get; set; }
+        public int ApprovedWorkOrders { get; set; }
+        public int InProgressWorkOrders { get; set; }
+        public int CompletedWorkOrders { get; set; }
+
+        // Recent Activity
+        public List<AuditLog>
+    RecentAuditLogs { get; set; } = new();
+
+    public async Task OnGetAsync()
+    {
+    // Inventory Statistics
+    TotalInventoryItems = await _db.InventoryItems
+    .Where(i => i.IsActive)
+    .CountAsync();
+
+    LowStockCount = await _db.InventoryItems
+    .Where(i => i.IsActive && i.OnHandQty <= i.LowStockThreshold)
+    .CountAsync();
+
+    // Work Order Statistics
+    TotalWorkOrders = await _db.WorkOrders.CountAsync();
+    DraftWorkOrders = await _db.WorkOrders
+    .CountAsync(w => w.Status == WorkOrderStatus.Draft);
+    SubmittedWorkOrders = await _db.WorkOrders
+    .CountAsync(w => w.Status == WorkOrderStatus.Submitted);
+    ApprovedWorkOrders = await _db.WorkOrders
+    .CountAsync(w => w.Status == WorkOrderStatus.Approved);
+    InProgressWorkOrders = await _db.WorkOrders
+    .CountAsync(w => w.Status == WorkOrderStatus.InProgress);
+    CompletedWorkOrders = await _db.WorkOrders
+    .CountAsync(w => w.Status == WorkOrderStatus.Completed);
+
+    // Recent Audit Logs (last 10)
+    RecentAuditLogs = await _db.AuditLogs
+    .OrderByDescending(a => a.TimestampUtc)
+    .Take(10)
+    .ToListAsync();
+    }
+    }
+    }

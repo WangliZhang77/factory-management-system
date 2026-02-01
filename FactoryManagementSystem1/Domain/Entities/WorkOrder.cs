@@ -32,14 +32,6 @@ public class WorkOrder
     public string? RejectedByUserId { get; set; }
     public string? RejectionReason { get; set; }
 
-    // ===== Completion =====
-    public DateTime? CompletedAtUtc { get; set; }
-    public string? CompletedByUserId { get; set; }
-
-    // ===== Cancellation =====
-    public DateTime? CancelledAtUtc { get; set; }
-    public string? CancelledByUserId { get; set; }
-
     // ===== Optional Assignment =====
     // Link to AspNetUsers.Id
     public string? AssignedToUserId { get; set; }
